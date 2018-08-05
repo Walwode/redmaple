@@ -1,69 +1,72 @@
-#include "PreScaler.h"
-#include "RadioTransmitter.h"
-#include "PowerHelper.h"
 #include "HumiditySensor.h"
-#include "VoltageSensor.h"
-#include "TemperatureSensor.h"
+#include "PowerHelper.h"
 #include "PhotoSensor.h"
+#include "RadioTransmitter.h"
+#include "TemperatureSensor.h"
+#include "VoltageSensor.h"
 
-// 20.03.2018 - 2.893
-// 21.03.2018 - 3.253
-// 25.03.2018 - 3.240
-// 27.03.2018 - 3.230
-// 31.03.2018 - 3.211
-// 09.04.2018 - 3.180
-// 16.04.2018 - 3.272
-
-VoltageSensor* sensorVoltage;
-HumiditySensor* sensorHumidity;
-// TemperatureSensor* sensorTemperature;
-// PhotoSensor* sensorPhoto;
-RadioTransmitter* transmitter;
+SBNetwork networkDevice(true, 9, 10);
+RadioTransmitter transmitter;
+PhotoSensor photoSensor(8, A1);
+HumiditySensor humiditySensor(5, A0);
+VoltageSensor voltageSensor(3, A2);
+TemperatureSensor temperatureSensor(6, 7);
 
 void setup() {
   Serial.begin(115200);
   while(!Serial);
+
+  transmitter.initialize(networkDevice);
   
-  // setClockPrescaler(CLOCK_PRESCALER_16);
-  
-  sensorVoltage = new VoltageSensor(8, A2);
-  sensorHumidity = new HumiditySensor(7, A0);
-  // sensorTemperature = new TemperatureSensor(7, 6);
-  // sensorPhoto = new PhotoSensor(8, A1);
-  
-  transmitter = new RadioTransmitter(9, 10, "c50c018c");
+  randomSeed(analogRead(0) + millis());
+  SBMacAddress deviceMac(random(0,256), random(0,256), random(0,256), random(0,256), random(0,256));
+  networkDevice.initialize(deviceMac);
+
+  Serial.println(F("*** PRESS 'N' to reset the device"));
+}
+
+void printBinary(const void* buf, uint8_t len) {
+  Serial.print(F("Data Size: "));
+  Serial.println(len);
+  Serial.print(F("Binary: "));
+  const uint8_t* curr = reinterpret_cast<const uint8_t*>(buf);
+  for (int i = 0; i < len; i++) {  for (int j = 7; j >= 0; j--) Serial.print(bitRead(curr[i],j)); }
+  Serial.println();
 }
 
 void loop() {
   PowerHelper::resetADC();
+
+  if (Serial.available()) { char c = toupper(Serial.read()); if (c == 'N') { networkDevice.resetData(); } }
+  networkDevice.update();
   
-  int voltage = sensorVoltage->read();
-  int humidity = sensorHumidity->read();
-  // int photo = sensorPhoto->read();
-  // int temperature;
-  // int humidityRoom;
-  // sensorTemperature->read(temperature, humidityRoom);
+  transmitter.send(&photoSensor);
+  doSleep(8); // break to finish nrf24
+  transmitter.send(&humiditySensor);
+  doSleep(8); // break to finish nrf24
+  transmitter.send(&voltageSensor);
+  doSleep(8); // break to finish nrf24
+  transmitter.send(&temperatureSensor);
   
-  transmitter->send(sensorVoltage->type, voltage);
-  transmitter->send(sensorHumidity->type, humidity);
-  // transmitter->send(sensorPhoto->type, photo);
-  // transmitter->send(sensorTemperature->type, temperature);
-  
-  delay(rescaleDuration(500)); // break to finish nrf24
   PowerHelper::disableADC();
-  doSleep(1199);
+  // doSleep(1199);
+  doSleep(16);
 }
 
 void doSleep(int seconds) {
-  Serial.print(F("Start sleep... "));
+  Serial.print(F("[SLEEP] Start sleep..."));
+  delay(500);
   
   int cycles = seconds / 8;
   int currentCycle = 0;
   while (currentCycle < cycles) {
     PowerHelper::sleep(WDT_SLEEP_8S);
     currentCycle++;
+    delay(500);
+    Serial.print(F("."));
   }
   
-  Serial.println(F("done"));
+  delay(500);
+  Serial.println(F(" Done"));
 }
 

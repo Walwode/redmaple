@@ -1,84 +1,78 @@
-#include <SPI.h>
-#include <nRF24L01.h>
-#include <RF24.h>
 #include <ESP8266WiFi.h>
+#include <SBNetwork_config.h>
+#include <SBNetwork.h>
 
-RF24 radio(2, 15); // HSPI + pins 2 for CE and 15 for CSN
-
-const uint64_t espAddress   = 0xE8E8F0F0A1LL;
-const uint64_t nanoAddress  = 0xE8E8F0F0A2LL;
-const uint64_t unoAddress = 0xE8E8F0F0A3LL;
-const uint64_t proAddress = 0xE8E8F0F0A4LL;
-// const uint64_t pipe05 = 0xE8E8F0F0A5LL;
-// const uint64_t pipe06 = 0xE8E8F0F0A6LL;
+SBMacAddress deviceMac(0x01, 0x02, 0x03, 0x04, 0x05);
+SBNetwork networkDevice(false, D4, D8);
 
 const char* server = "api.walterheger.de";
 const char* site = "/redmaple/arduino.php";
 const char* accessToken = "d548434a-2c80-11e8-8c45-00248c77bce5";
 const char* deviceId = "1ea587d3";
 
-struct SensorData {
-  short version;
-  short type;
-  short value;
-  char deviceId[9]; // esp char[] != nano char[] -> last in struct!
-};
-
 void setup() {
   Serial.begin(115200);
   while (!Serial);
-
-  restartRadio();
-  radio.powerUp();
-  radio.startListening();
+  
+  networkDevice.initialize(deviceMac);
+  Serial.println(F("*** PRESS 'N' to reset the device"));
   
   connectWifi();
 }
 
 void loop() {
+  if (Serial.available()) {
+    char c = toupper(Serial.read());
+    if (c == 'N') { networkDevice.resetData(); }
+    if (c == 'E') {
+      if (!networkDevice.RunAsClient) { Serial.println("*****");
+        if (networkDevice.isAutomaticClientAddingEnabled()) { Serial.println("Deactivating AutomaticClientAdding"); }
+        else { Serial.println("Activating AutomaticClientAdding"); }
+        Serial.println("*****");
+        networkDevice.enableAutomaticClientAdding(!networkDevice.isAutomaticClientAddingEnabled());        
+      }
+    }
+  }
+  networkDevice.update();
+  
   listenRadio();
 }
 
 void listenRadio() {
-  if (radio.available()) {
-
-    uint8_t pipe;
-    while (radio.available(&pipe)) {
+  uint8_t messageSize = networkDevice.available();
+  if (messageSize > 0) {
+    byte* message = (byte*)networkDevice.getMessage();
+    Serial.print(F("Received Content from sensor: "));
+    Serial.println((char*)message);
+    
+    uint8_t version;
+    memcpy(&version, (void*)(message), sizeof(uint8_t));
+    if (version == 0x01) {
+      uint8_t type;
+      float value;
       
-      SensorData data;
-      radio.read(&data, sizeof(data));
-      Serial.println(F(">> Radio Data start"));
-      Serial.println(data.version);
-      Serial.println(data.deviceId);
-      Serial.println(data.type);
-      Serial.println(data.value);
-      Serial.println(F("<< Radio Data end"));
-      sendDataToApi(&data);
+      memcpy(&type, (void*)(message + 1), sizeof(uint8_t));
+      memcpy(&value, (void*)(message + 2), sizeof(float));
+      sendDataToApi(getLastMacString(), type, value);
     }
   }
 }
 
-void restartRadio() {
-  Serial.print(F("Restart radio... "));
-  yield();
+char* to3Digit(uint8_t value) {
+  char str[4];
+  snprintf(str, 4, "%03d", value);
+  return str;
+}
 
-  radio.begin();
-  radio.setChannel(2);
-  radio.setPALevel(RF24_PA_LOW);      // RF24_PA_MIN = -18dBm, RF24_PA_LOW = -12dBm, RF24_PA_HIGH = -6dBm, RF24_PA_MAX = 0dBm
-  radio.setDataRate(RF24_1MBPS);
-  radio.setCRCLength(RF24_CRC_16);
-  // radio.setAutoAck(1);                   // Ensure autoACK is enabled
-  // radio.setRetries(2, 15);               // Optionally, increase the delay between retries. Want the number of auto-retries as high a
-
-  radio.openWritingPipe(espAddress);
-  radio.openReadingPipe(1, unoAddress);
-  radio.openReadingPipe(1, nanoAddress);
-  radio.openReadingPipe(1, proAddress);
-  // radio.enableDynamicPayloads();     // must have for multi pipe receiving
-
-  radio.stopListening();
-  radio.powerDown();
-  Serial.println(F("done"));
+String getLastMacString() {
+  SBMacAddress mac = networkDevice.getLastReceivedMac();
+  
+  char temp[5+1];
+  sprintf(temp, "%02x.%02x.%02x.%02x",mac.Bytes[0],mac.Bytes[1],mac.Bytes[2],mac.Bytes[3],mac.Bytes[4]);
+  String str(temp);
+  return str;
+  
+  // return (String)mac.Bytes[0] + '.' +(String)mac.Bytes[1] + '.' + (String)mac.Bytes[2] + '.' + (String)mac.Bytes[3] + '.' + (String)mac.Bytes[4];
 }
 
 void toBinary(const void* buf, uint8_t data_len) {
@@ -106,7 +100,7 @@ void connectWifi() {
   Serial.println(WiFi.localIP());  
 }
 
-void sendDataToApi(SensorData* data) {
+void sendDataToApi(String mac, uint8_t type, float value) {
   Serial.println(F(">> Send by WiFi start"));
   
   // Use WiFiClient class to create TCP connections
@@ -122,9 +116,9 @@ void sendDataToApi(SensorData* data) {
   url += site;
   url += F("?action=sensor&access=");
   url += accessToken;
-  url += "&device=" + String(data->deviceId);
-  url += "&type=" + String(data->type);
-  url += "&value=" + String(data->value);
+  url += "&device=" + mac;
+  url += "&type=" + String(type);
+  url += "&value=" + String(value);
   // String url = "/whitewalnut/plant-arduino.php?action=humidity&code=EXTERNAL&humidity=" + String(data->humidity); 
   
   Serial.print(F("Requesting URL: "));
