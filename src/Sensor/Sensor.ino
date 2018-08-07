@@ -1,23 +1,12 @@
-#include "HumiditySensor.h"
 #include "PowerHelper.h"
-#include "PhotoSensor.h"
-#include "RadioTransmitter.h"
-#include "TemperatureSensor.h"
-#include "VoltageSensor.h"
+#include "Sensor.h"
 
 SBNetwork networkDevice(true, 9, 10);
-RadioTransmitter transmitter;
-PhotoSensor photoSensor(8, A1);
-HumiditySensor humiditySensor(5, A0);
-VoltageSensor voltageSensor(3, A2);
-TemperatureSensor temperatureSensor(6, 7);
 
 void setup() {
   Serial.begin(115200);
   while(!Serial);
 
-  transmitter.initialize(networkDevice);
-  
   randomSeed(analogRead(0) + millis());
   SBMacAddress deviceMac(random(0,256), random(0,256), random(0,256), random(0,256), random(0,256));
   networkDevice.initialize(deviceMac);
@@ -26,35 +15,51 @@ void setup() {
 }
 
 void loop() {
+  // PowerHelper::setClockPrescaler(CLOCK_PRESCALER_1);
   PowerHelper::resetADC();
 
   if (Serial.available()) { char c = toupper(Serial.read()); if (c == 'N') { networkDevice.resetData(); } }
   networkDevice.update();
   
-  transmitter.send(&photoSensor);
-  doSleep(8); // break to finish nrf24
-  transmitter.send(&humiditySensor);
-  doSleep(8); // break to finish nrf24
-  transmitter.send(&voltageSensor);
-  doSleep(8); // break to finish nrf24
-  transmitter.send(&temperatureSensor);
+  uint16_t voltage = Sensor::readVoltage(3, A2);
+  sendNrf24(SENSOR_TYPE_VOLTAGE, (float)voltage);
+  PowerHelper::sleep(8); // break to finish nrf24
   
+  uint16_t humidity = Sensor::readHumidity(5, A0);
+  sendNrf24(SENSOR_TYPE_HUMIDITY, (float)humidity);
+  PowerHelper::sleep(8); // break to finish nrf24
+  
+  uint16_t photo = Sensor::readPhoto(8, A1);
+  sendNrf24(SENSOR_TYPE_PHOTO, (float)photo);
+  PowerHelper::sleep(8); // break to finish nrf24
+  
+  byte temp, hum = 0;
+  Sensor::readDht11(6, 7, temp, hum);
+  sendNrf24(SENSOR_TYPE_TEMPERATURE, (float)temp);
+  PowerHelper::sleep(8); // break to finish nrf24
+  
+  // PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
   PowerHelper::disableADC();
-  // doSleep(1199);
-  doSleep(16);
+  PowerHelper::sleep(32);
+  // PowerHelper::sleep(1199);
 }
 
-void doSleep(int seconds) {
-  Serial.print(F("[SLEEP] Start sleep..."));
+void sendNrf24(uint8_t type, float value) {
+  Serial.println(F("[NRF24] Send data... "));
+  Serial.print(F("[NRF24] Type: "));
+  Serial.println(type);
+  Serial.print(F("[NRF24] Value: "));
+  Serial.println(value);
   
-  int cycles = seconds / 8;
-  int currentCycle = 0;
-  while (currentCycle < cycles) {
-    PowerHelper::sleep(WDT_SLEEP_8S);
-    currentCycle++;
-    Serial.print(F("."));
-  }
+  networkDevice.radio.powerUp();
   
-  Serial.println(F(" Done"));
-}
+  uint8_t version = 0x01;
+  byte message[1+1+4];
+  memcpy((void*)(message), &version, sizeof(version));
+  memcpy((void*)(message + 1), &type, sizeof(type));
+  memcpy((void*)(message + 2), &value, sizeof(value));
+  networkDevice->sendToDevice(networkDevice->NetworkDevice.MasterMAC, message, 1+1+4);
 
+  networkDevice.radio.powerDown();
+  Serial.print(F("done"));
+}
