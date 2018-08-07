@@ -69,6 +69,7 @@ void PowerHelper::doSleep(byte sleepTime) {
 
 void PowerHelper::sleep(int seconds) {
   Serial.print(F("[POWER] PowerSleep..."));
+  yield();
   
   int cycles = (seconds / 8) + 1;
   int currentCycle = 0;
@@ -79,6 +80,7 @@ void PowerHelper::sleep(int seconds) {
   }
   
   Serial.println(F(" done"));
+  yield();
 }
 
 void PowerHelper::disableADC() {

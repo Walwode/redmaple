@@ -16,7 +16,7 @@ void setup() {
 }
 
 void loop() {
-  // PowerHelper::setClockPrescaler(CLOCK_PRESCALER_1);
+  PowerHelper::setClockPrescaler(CLOCK_PRESCALER_1);
   PowerHelper::resetADC();
 
   if (Serial.available()) { char c = toupper(Serial.read()); if (c == 'N') { networkDevice.resetData(); } }
@@ -35,11 +35,12 @@ void loop() {
   PowerHelper::sleep(8); // break to finish nrf24
   
   byte temp, hum = 0;
-  Sensor::readDht11(6, 7, temp, hum);
+  Sensor::readDht11(7, 6, temp, hum);
   sendNrf24(SENSOR_TYPE_TEMPERATURE, (float)temp);
+  sendNrf24(SENSOR_TYPE_HUMIDITYAIR, (float)hum);
   PowerHelper::sleep(8); // break to finish nrf24
   
-  // PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
+  PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
   PowerHelper::disableADC();
   PowerHelper::sleep(32);
   // PowerHelper::sleep(1199);
@@ -61,5 +62,6 @@ void sendNrf24(uint8_t type, float value) {
   networkDevice.sendToDevice(networkDevice.NetworkDevice.MasterMAC, message, 1+1+4);
 
   networkDevice.radio.powerDown();
-  Serial.print(F("done"));
+  Serial.println(F("[NRF24] Send data... done"));
+  yield();
 }

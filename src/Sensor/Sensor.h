@@ -6,6 +6,7 @@
 #define SENSOR_TYPE_TEMPERATURE   2
 #define SENSOR_TYPE_PHOTO         3 
 #define SENSOR_TYPE_GAS           4 
+#define SENSOR_TYPE_HUMIDITYAIR   5
 
 #include "SimpleDHT.h"
 
@@ -16,7 +17,7 @@ public:
   static uint16_t readVoltage(byte vccPin, byte dataPin);
   static uint16_t readHumidity(byte vccPin, byte dataPin);
   static uint16_t readPhoto(byte vccPin, byte dataPin);
-  static void readDht11(byte vccPin, byte dataPin, byte &temp, byte &hum);
+  static bool readDht11(byte vccPin, byte dataPin, byte &temp, byte &hum);
 };
 #endif
 
@@ -48,7 +49,7 @@ uint16_t Sensor::readHumidity(byte vccPin, byte dataPin) {
   digitalWrite(vccPin, HIGH);
   
   for (int i = 0; i < 8; i++) analogRead(dataPin); // burn
-  delay(500);
+  delay(10);
   uint16_t humidityValue = 1023 - analogRead(dataPin);
   
   digitalWrite(vccPin, LOW);
@@ -68,7 +69,6 @@ uint16_t Sensor::readPhoto(byte vccPin, byte dataPin) {
   for (int i = 0; i < 8; i++) analogRead(dataPin); // burn
   delay(10);
   uint16_t photoValue = analogRead(dataPin);
-  delay(10);
   
   digitalWrite(vccPin, LOW);
   pinMode(vccPin, INPUT);  
@@ -77,23 +77,30 @@ uint16_t Sensor::readPhoto(byte vccPin, byte dataPin) {
   return photoValue;
 }
 
-void Sensor::readDht11(byte vccPin, byte dataPin, byte &temp, byte &hum) {
+bool Sensor::readDht11(byte vccPin, byte dataPin, byte &temp, byte &hum) {
   Serial.println(F("[SENSOR] Read DHT11... "));
   pinMode(vccPin, OUTPUT);
   pinMode(dataPin, INPUT);
   digitalWrite(vccPin, HIGH);
   
-  temp, hum = 0;
+  temp, hum = NULL;
   byte data[40] = {0};
   SimpleDHT11 dht11;
-  while (dht11.read(dataPin, &temp, &hum, data)) {}
+  unsigned long timeout = millis() + 5000;
+  while ((dht11.read(dataPin, &temp, &hum, data)) && (millis() < timeout)) {}
   
   digitalWrite(vccPin, LOW);
   pinMode(vccPin, INPUT);
-  
-  Serial.print(F("[SENSOR] Temperature... "));
-  Serial.println((int)temp);
-  Serial.print(F("[SENSOR] Humidity... "));
-  Serial.println((int)hum);
+
+  if (temp != NULL) {
+    Serial.print(F("[SENSOR] Temperature... "));
+    Serial.println((int)temp);
+    Serial.print(F("[SENSOR] Humidity... "));
+    Serial.println((int)hum);
+    Serial.println(F("[SENSOR] Read DHT11... done"));
+    return true;
+  }
+  Serial.println(F("[SENSOR] Read DHT11... timeout"));
+  return false;
 }
 
