@@ -25,15 +25,6 @@ void setup() {
   Serial.println(F("*** PRESS 'N' to reset the device"));
 }
 
-void printBinary(const void* buf, uint8_t len) {
-  Serial.print(F("Data Size: "));
-  Serial.println(len);
-  Serial.print(F("Binary: "));
-  const uint8_t* curr = reinterpret_cast<const uint8_t*>(buf);
-  for (int i = 0; i < len; i++) {  for (int j = 7; j >= 0; j--) Serial.print(bitRead(curr[i],j)); }
-  Serial.println();
-}
-
 void loop() {
   PowerHelper::resetADC();
 
@@ -55,18 +46,15 @@ void loop() {
 
 void doSleep(int seconds) {
   Serial.print(F("[SLEEP] Start sleep..."));
-  delay(500);
   
   int cycles = seconds / 8;
   int currentCycle = 0;
   while (currentCycle < cycles) {
     PowerHelper::sleep(WDT_SLEEP_8S);
     currentCycle++;
-    delay(500);
     Serial.print(F("."));
   }
   
-  delay(500);
   Serial.println(F(" Done"));
 }
 
