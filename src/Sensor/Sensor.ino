@@ -1,3 +1,4 @@
+#include <SBNetwork.h>
 #include "PowerHelper.h"
 #include "Sensor.h"
 
@@ -50,7 +51,6 @@ void sendNrf24(uint8_t type, float value) {
   Serial.println(type);
   Serial.print(F("[NRF24] Value: "));
   Serial.println(value);
-  
   networkDevice.radio.powerUp();
   
   uint8_t version = 0x01;
@@ -58,7 +58,7 @@ void sendNrf24(uint8_t type, float value) {
   memcpy((void*)(message), &version, sizeof(version));
   memcpy((void*)(message + 1), &type, sizeof(type));
   memcpy((void*)(message + 2), &value, sizeof(value));
-  networkDevice->sendToDevice(networkDevice->NetworkDevice.MasterMAC, message, 1+1+4);
+  networkDevice.sendToDevice(networkDevice.NetworkDevice.MasterMAC, message, 1+1+4);
 
   networkDevice.radio.powerDown();
   Serial.print(F("done"));

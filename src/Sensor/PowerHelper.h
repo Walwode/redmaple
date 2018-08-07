@@ -30,15 +30,16 @@
 #define CLOCK_PRESCALER_256 (0x8)
 
 static uint8_t __clock_prescaler = (CLKPR & (_BV(CLKPS0) | _BV(CLKPS1) | _BV(CLKPS2) | _BV(CLKPS3)));
+ISR (WDT_vect) { wdt_disable(); } // watchdog interrupt
 
 class PowerHelper {
-private
-  static void doSleep(byte sleepTime);
-  static void getClockPrescaler() {return (__clock_prescaler);}
-  static void getClockDivisionFactor() {return ((uint16_t)(1 << __clock_prescaler));}
+private:
+  static uint8_t getClockPrescaler() {return (__clock_prescaler);}
+  static uint16_t getClockDivisionFactor() {return ((uint16_t)(1 << __clock_prescaler));}
   
 public:
-  static void sleep();
+  static void sleep(int seconds);
+  static void doSleep(byte sleepTime);
   
   static void setClockPrescaler(uint8_t clockPrescaler);
   static unsigned long trueMillis() {return millis() * getClockDivisionFactor();}
@@ -50,8 +51,6 @@ public:
   static void resetADC();
 };
 #endif
-
-ISR (WDT_vect) { wdt_disable(); } // watchdog interrupt
 
 void PowerHelper::doSleep(byte sleepTime) {
   MCUSR = 0;
@@ -68,18 +67,18 @@ void PowerHelper::doSleep(byte sleepTime) {
   sleep_disable(); // end sleep
 }
 
-void sleep(int seconds) {
-  Serial.print(F("[POWER] Sleeping..."));
+void PowerHelper::sleep(int seconds) {
+  Serial.print(F("[POWER] PowerSleep..."));
   
   int cycles = (seconds / 8) + 1;
   int currentCycle = 0;
   while (currentCycle < cycles) {
-    PowerHelper::sleep(WDT_SLEEP_8S);
+    doSleep(WDT_SLEEP_8S);
     currentCycle++;
     Serial.print(F("."));
   }
   
-  Serial.println(F(" Done"));
+  Serial.println(F(" done"));
 }
 
 void PowerHelper::disableADC() {

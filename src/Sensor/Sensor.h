@@ -16,7 +16,7 @@ public:
   static uint16_t readVoltage(byte vccPin, byte dataPin);
   static uint16_t readHumidity(byte vccPin, byte dataPin);
   static uint16_t readPhoto(byte vccPin, byte dataPin);
-  static void readDht11(byte vccPin, byte dataPin, byte &temp, byte &hum) {
+  static void readDht11(byte vccPin, byte dataPin, byte &temp, byte &hum);
 };
 #endif
 
