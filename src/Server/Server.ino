@@ -54,6 +54,10 @@ void listenRadio() {
       memcpy(&type, (void*)(message + 1), sizeof(uint8_t));
       memcpy(&value, (void*)(message + 2), sizeof(float));
       sendDataToApi(getLastMacString(), type, value);
+
+      Serial.println("Send received message back to client...");
+      char* returnMessage = "Hello client, yes I can hear you well!";
+      networkDevice.sendToDevice(networkDevice.getLastReceivedMac(), returnMessage, strlen(returnMessage) + 1);
     }
   }
 }
@@ -67,8 +71,8 @@ char* to3Digit(uint8_t value) {
 String getLastMacString() {
   SBMacAddress mac = networkDevice.getLastReceivedMac();
   
-  char temp[5+1];
-  sprintf(temp, "%02x.%02x.%02x.%02x",mac.Bytes[0],mac.Bytes[1],mac.Bytes[2],mac.Bytes[3],mac.Bytes[4]);
+  char temp[6+1];
+  sprintf(temp, "%02x.%02x.%02x.%02x.%02x",mac.Bytes[0],mac.Bytes[1],mac.Bytes[2],mac.Bytes[3],mac.Bytes[4]);
   String str(temp);
   return str;
   

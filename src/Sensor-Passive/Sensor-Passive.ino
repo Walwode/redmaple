@@ -8,7 +8,7 @@ void setup() {
   Serial.begin(115200);
   while(!Serial);
 
-  randomSeed(analogRead(0) + millis());
+  randomSeed(analogRead(A0) + analogRead(A1) + analogRead(A2) + analogRead(A3) + analogRead(A4));
   SBMacAddress deviceMac(random(0,256), random(0,256), random(0,256), random(0,256), random(0,256));
   networkDevice.initialize(deviceMac);
 
@@ -22,14 +22,15 @@ void loop() {
   if (Serial.available()) { char c = toupper(Serial.read()); if (c == 'N') { networkDevice.resetData(); } }
   networkDevice.update();
   
-  uint16_t voltage = Sensor::readVoltage(3, A2);
+  uint16_t voltage = Sensor::readVoltage(7, A6);
   sendNrf24(SENSOR_TYPE_VOLTAGE, (float)voltage);
   PowerHelper::sleep(8); // break to finish nrf24
   
-  uint16_t humidity = Sensor::readHumidity(5, A0);
+  uint16_t humidity = Sensor::readHumidity(8, A0);
   sendNrf24(SENSOR_TYPE_HUMIDITY, (float)humidity);
   PowerHelper::sleep(8); // break to finish nrf24
-  
+
+  /*
   uint16_t photo = Sensor::readPhoto(8, A1);
   sendNrf24(SENSOR_TYPE_PHOTO, (float)photo);
   PowerHelper::sleep(8); // break to finish nrf24
@@ -39,11 +40,12 @@ void loop() {
   sendNrf24(SENSOR_TYPE_TEMPERATURE, (float)temp);
   sendNrf24(SENSOR_TYPE_HUMIDITYAIR, (float)hum);
   PowerHelper::sleep(8); // break to finish nrf24
+  */
   
   PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
   PowerHelper::disableADC();
-  PowerHelper::sleep(32);
-  // PowerHelper::sleep(1199);
+  // PowerHelper::sleep(32);
+  PowerHelper::sleep(1175);
 }
 
 void sendNrf24(uint8_t type, float value) {
