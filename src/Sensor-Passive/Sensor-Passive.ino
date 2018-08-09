@@ -2,6 +2,8 @@
 #include "PowerHelper.h"
 #include "Sensor.h"
 
+TODO: alter value wird bei auch bei anderen Sensoren gesendet
+
 SBNetwork networkDevice(true, 9, 10);
 
 /*
@@ -17,12 +19,14 @@ void setup() {
 
   randomSeed(getRandomSeed());
   SBMacAddress deviceMac(random(0, 256), random(0, 256), random(0, 256), random(0, 256), random(0, 256));
+  // networkDevice.resetData();
   networkDevice.initialize(deviceMac);
-
-  Serial.println(F("*** PRESS 'N' to reset the device"));
+  
+  Serial.println(F("*** PRESS 'N' to reset the device ***"));
 }
 
 void loop() {
+  Serial.println("Loop");
   PowerHelper::setClockPrescaler(CLOCK_PRESCALER_1);
   PowerHelper::resetADC();
 
@@ -31,11 +35,15 @@ void loop() {
     if (c == 'N') {
       networkDevice.resetData();
     }
+    if (c == 'T') {
+      Serial.println("Still running...");
+    }
   }
+  
   networkDevice.update();
-
   uint8_t messageSize = networkDevice.available();
-  if (messageSize > 0) {
+  
+  while (messageSize > 0) {
     byte* message = (byte*)networkDevice.getMessage();
     SBMacAddress sender = networkDevice.getLastReceivedMac();
     Serial.print(F("Sensor value request... "));
@@ -51,6 +59,7 @@ void loop() {
         case SENSOR_TYPE_VOLTAGE:
           value = (float)Sensor::readVoltage(7, A6);
           break;
+        /*
         case SENSOR_TYPE_HUMIDITY:
           value = Sensor::readHumidity(8, A0);
           break;
@@ -68,9 +77,12 @@ void loop() {
         case SENSOR_TYPE_GAS:
           // not implemented
           break;
+        */
       }
       if (value != NULL) sendNrf24(sender, type, value);
     }
+    networkDevice.update();
+    messageSize = networkDevice.available();
   }
 
   PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
