@@ -8,7 +8,7 @@ SBNetwork networkDevice(true, 9, 10);
    The active NRF24 device is sending sensor values in a specified time.
    Due to Radio.PowerDown, PowerSleep and ClockPreScaler, it's power consumption is 5.4uA in sleep mode.
 
-   Uncomment and configure the sensor values in the loop section
+   Uncomment and configure the sensor values in the function sendSensorValues
 */
 
 void setup() {
@@ -26,35 +26,45 @@ void loop() {
   PowerHelper::setClockPrescaler(CLOCK_PRESCALER_1);
   PowerHelper::resetADC();
 
+  receiveSerial();
+  sendSensorValues();
+  
+  PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
+  PowerHelper::disableADC();
+  PowerHelper::sleep(1175);
+}
+
+void receiveSerial() {
   if (Serial.available()) {
     char c = toupper(Serial.read());
-    if (c == 'N') {
-      networkDevice.resetData();
+    switch (c) {
+      case 'N':
+        networkDevice.resetData();
+        break;
     }
   }
+}
+
+void sendSensorValues() {
   networkDevice.update();
 
   uint16_t voltage = Sensor::readVoltage(7, A6);
   sendNrf24(SENSOR_TYPE_VOLTAGE, (float)voltage);
-  PowerHelper::sleep(8); // break to finish nrf24
+  delay(10); // break to finish nrf24
 
   uint16_t humidity = Sensor::readHumidity(8, A0);
   sendNrf24(SENSOR_TYPE_HUMIDITY, (float)humidity);
-  PowerHelper::sleep(8); // break to finish nrf24
+  delay(10); // break to finish nrf24
 
   uint16_t photo = Sensor::readPhoto(8, A1);
   sendNrf24(SENSOR_TYPE_PHOTO, (float)photo);
-  PowerHelper::sleep(8); // break to finish nrf24
+  delay(10); // break to finish nrf24
 
   byte temp, hum = 0;
   Sensor::readDht11(7, 6, temp, hum);
   sendNrf24(SENSOR_TYPE_TEMPERATURE, (float)temp);
   sendNrf24(SENSOR_TYPE_HUMIDITYAIR, (float)hum);
-  PowerHelper::sleep(8); // break to finish nrf24
-
-  PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
-  PowerHelper::disableADC();
-  PowerHelper::sleep(1175);
+  delay(10); // break to finish nrf24
 }
 
 void sendNrf24(uint8_t type, float value) {

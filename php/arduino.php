@@ -9,20 +9,21 @@ switch ($action) {
 }
 
 function logSensorData() {
-	// http://api.walterheger.de/redmaple/arduino.php?action=sensor&access=d548434a-2c80-11e8-8c45-00248c77bce5&device=2a1adf7d&type=1&value=264
+	// http://api.walterheger.de/redmaple/arduino.php?action=sensor&access=d548434a-2c80-11e8-8c45-00248c77bce5&device=2a.1a.df.7d.99&type=1&value=264
 	$type	= toValidSqlValue($_GET['type']);
 	switch($type) {
 		case 0: logVoltage(); break;
 		case 1: logHumidity(); break;
 		case 2: logTemperature(); break;
 		case 3: logPhoto(); break;
+		case 4: logGas(); break;
+		case 5: logHumidityAir(); break;
 		die("Sensor type " . $type . " unkown.");
 	}
 }
 
 function logVoltage() {
 
-	//  http://api.walterheger.de/redmaple/arduino.php?action=voltage&access=d548434a-2c80-11e8-8c45-00248c77bce5&device=2a1adf7d&value=264
 	$accessToken	= toValidSqlValue($_GET['access']);
 	$deviceId		= toValidSqlValue($_GET['device']);
 	$voltage		= toValidSqlValue($_GET['value']);
@@ -37,7 +38,6 @@ function logVoltage() {
 
 function logHumidity() {
 
-	//  http://api.walterheger.de/redmaple/arduino.php?action=humidity&access=b17d373e-48c7-4901-81c8-a286e3f02b61&device=89f9c0f6-2c82&value=200
 	$accessToken	= toValidSqlValue($_GET['access']);
 	$deviceId		= toValidSqlValue($_GET['device']);
 	$humidity		= 1024 - toValidSqlValue($_GET['value']);
@@ -52,7 +52,6 @@ function logHumidity() {
 
 function logTemperature() {
 
-	//  http://api.walterheger.de/redmaple/arduino.php?action=temperature&access=d548434a-2c80-11e8-8c45-00248c77bce5&device=2a1adf7d&value=264
 	$accessToken	= toValidSqlValue($_GET['access']);
 	$deviceId		= toValidSqlValue($_GET['device']);
 	$temperature	= toValidSqlValue($_GET['value']);
@@ -67,7 +66,6 @@ function logTemperature() {
 
 function logPhoto() {
 
-	//  http://api.walterheger.de/redmaple/arduino.php?action=photo&access=d548434a-2c80-11e8-8c45-00248c77bce5&device=2a1adf7d&value=264
 	$accessToken	= toValidSqlValue($_GET['access']);
 	$deviceId		= toValidSqlValue($_GET['device']);
 	$photo			= toValidSqlValue($_GET['value']);
@@ -75,6 +73,34 @@ function logPhoto() {
 	
 	if ($userId = getUserFromAccessToken($accessToken)) {
 		if (sqlCommand("INSERT INTO RedMaple_PhotoEntry (datetime, userId, deviceId, photo) VALUES ('$datetime', '$userId','$deviceId', '$photo')")) echo "Entry created";
+	} else {
+		die("Token " . $accessToken . " is not permitted");
+	}
+}
+
+function logGas() {
+
+	$accessToken	= toValidSqlValue($_GET['access']);
+	$deviceId		= toValidSqlValue($_GET['device']);
+	$gas			= toValidSqlValue($_GET['value']);
+	$datetime		= toValidSqlValue(time());
+	
+	if ($userId = getUserFromAccessToken($accessToken)) {
+		if (sqlCommand("INSERT INTO RedMaple_GasEntry (datetime, userId, deviceId, photo) VALUES ('$datetime', '$userId','$deviceId', '$gas')")) echo "Entry created";
+	} else {
+		die("Token " . $accessToken . " is not permitted");
+	}
+}
+
+function logHumidityAir() {
+
+	$accessToken	= toValidSqlValue($_GET['access']);
+	$deviceId		= toValidSqlValue($_GET['device']);
+	$humidity		= toValidSqlValue($_GET['value']);
+	$datetime		= toValidSqlValue(time());
+	
+	if ($userId = getUserFromAccessToken($accessToken)) {
+		if (sqlCommand("INSERT INTO RedMaple_HumidityAirEntry (datetime, userId, deviceId, photo) VALUES ('$datetime', '$userId','$deviceId', '$humidity')")) echo "Entry created";
 	} else {
 		die("Token " . $accessToken . " is not permitted");
 	}

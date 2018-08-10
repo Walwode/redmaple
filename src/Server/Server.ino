@@ -57,17 +57,34 @@ void loop() {
   Serial.println("unreachable code");
 }
 
+void PassiveScheduler::setup() {}
+void PassiveScheduler::loop() {
+  receiveSerial();
+  sendRadio();
+  delay(30000);
+  // delay(19*60*1000); // 19 minutes
+}
+
+void ActiveScheduler::setup() {}
+void ActiveScheduler::loop() {
+  receiveSerial();
+  receiveRadio();
+}
+
 void receiveSerial() {
   if (Serial.available()) {
     char c = toupper(Serial.read());
-    if (c == 'N') { networkDevice.resetData(); }
-    if (c == 'E') {
+    switch (c) {
+      case 'N': networkDevice.resetData(); break;
+      case 'E':
       if (!networkDevice.RunAsClient) { Serial.println("*****");
         if (networkDevice.isAutomaticClientAddingEnabled()) { Serial.println("Deactivating AutomaticClientAdding"); }
         else { Serial.println("Activating AutomaticClientAdding"); }
         Serial.println("*****");
         networkDevice.enableAutomaticClientAdding(!networkDevice.isAutomaticClientAddingEnabled());        
       }
+        break;
+      case 'S': sendRadio(); break;
     }
   }
 }
@@ -89,22 +106,75 @@ void receiveRadio() {
       memcpy(&type, (void*)(message + 1), sizeof(uint8_t));
       memcpy(&value, (void*)(message + 2), sizeof(float));
       sendDataToApi(getLastMacString(), type, value);
-
-      /*
-      Serial.println("Send received message back to client...");
-      char* returnMessage = "Hello client, yes I can hear you well!";
-      networkDevice.sendToDevice(networkDevice.getLastReceivedMac(), returnMessage, strlen(returnMessage) + 1);
-      */
     }
   }
 }
 
-String getLastMacString() {
-  return getMacString(networkDevice.getLastReceivedMac());
+void sendDataToApi(String mac, uint8_t type, float value) {
+  Serial.println(F(">> Send by WiFi start"));
+  
+  // PROGMEM const char* site = "This string is in PROGMEM";
+  // PROGMEM const char* accessToken = "<token>";
+  // sprintf(url, "%S?action=sensor&access=%S&device=%S&type=%02d&value=%02d",site,accessToken,mac,type,value);
+  
+  String url;
+  url += site;
+  url += F("?action=sensor&access=");
+  url += accessToken;
+  url += F("&device=") + String(mac);
+  url += F("&type=") + String(type);
+  url += F("&value=") + String(value);
+  Serial.print(F("Requesting URL: "));
+  Serial.println(url);
+  
+  HTTPClient http;
+  http.begin(url);
+  int httpCode = http.GET();
+  if (httpCode > 0) { Serial.println(http.getString()); } // print payload
+  http.end();
+  
+  Serial.println(F("<< Send by WiFi end"));
 }
 
-String getMacString(SBMacAddress mac) {
-  char temp[6+1];
+void sendRadio() {
+  for (int i = 0; i < MAX_CLIENTS; i++) {
+    if (!networkDevice.MasterStorage.Slaves[i].isEquals(EMPTY_MAC)) {
+      Serial.print("Send sensor request to ");
+      Serial.print(macToString(networkDevice.MasterStorage.Slaves[i]));
+      Serial.print(": ");
+
+      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_VOLTAGE);
+      delay(50);
+      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_HUMIDITY);
+      delay(50);
+      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_TEMPERATURE);
+      delay(50);
+      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_PHOTO);
+      delay(50);
+      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_GAS);
+      delay(50);
+      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_HUMIDITYAIR);
+      delay(50);
+      Serial.println("...done");
+    }
+  }
+}
+
+void sendRadioRequest(SBMacAddress mac, uint8_t type) {
+  Serial.print(type);
+  uint8_t version = 0x01;
+  byte message[1 + 1];
+  memcpy((void*)(message), &version, sizeof(uint8_t));
+  memcpy((void*)(message + 1), &type, sizeof(uint8_t));
+  networkDevice.sendToDevice(mac, message, sizeof(message));
+}
+
+String getLastMacString() {
+  return macToString(networkDevice.getLastReceivedMac());
+}
+
+String macToString(SBMacAddress mac) {
+  char temp[9];
   sprintf(temp, "%02x.%02x.%02x.%02x.%02x",mac.Bytes[0],mac.Bytes[1],mac.Bytes[2],mac.Bytes[3],mac.Bytes[4]);
   String str(temp);
   return str;
@@ -134,116 +204,3 @@ void connectWifi() {
   Serial.println(F("IP address: "));
   Serial.println(WiFi.localIP());  
 }
-
-void sendDataToApi(String mac, uint8_t type, float value) {
-  Serial.println(F(">> Send by WiFi start"));
-
-  /*
-  // Use WiFiClient class to create TCP connections
-  WiFiClient client;
-  const int httpPort = 80;
-  if (!client.connect(server, httpPort)) {
-    Serial.println(F("Connection failed"));
-    return;
-  }
-  */
-  
-  // We now create a URI for the request
-  String url;
-  url += site;
-  url += F("?action=sensor&access=");
-  url += accessToken;
-  url += "&device=" + String(mac);
-  url += "&type=" + String(type);
-  url += "&value=" + String(value);
-  // String url = "/whitewalnut/plant-arduino.php?action=humidity&code=EXTERNAL&humidity=" + String(data->humidity); 
-
-  Serial.print(F("Requesting URL: "));
-  Serial.println(url);
-
-  
-  HTTPClient http;  //Declare an object of class HTTPClient
-
-  http.begin(url);  //Specify request destination
-  int httpCode = http.GET();                                                                  //Send the request
-
-  if (httpCode > 0) { //Check the returning code
-
-    String payload = http.getString();   //Get the request response payload
-    Serial.println(payload);                     //Print the response payload
-
-  }
-
-  http.end();   //Close connection
-
-  /*
-  // This will send the request to the server
-  client.print(F("GET "));
-  client.print(url);
-  client.print(F(" HTTP/1.1\r\n"));
-  client.print(F("Host: api.walterheger.de\r\n"));
-  // client.print(F("Connection: close\r\n\r\n"));
-  client.print(F("Connection: keep-alive\r\n\r\n"));
-  unsigned long timeout = millis();
-  while (client.available() == 0) {
-    if (millis() - timeout > 5000) {
-      Serial.println(F("Client Timeout !"));
-      client.stop();
-      return;
-    }
-  }
-  
-  // Read all the lines of the reply from server and print them to Serial
-  while(client.available()){
-    String line = client.readStringUntil('\r');
-    Serial.print(line);
-  }
-  
-  client.stop();
-  Serial.println();
-  Serial.println(F("Closing connection"));
-  */
-  
-  Serial.println(F("<< Send by WiFi end"));
-}
-
-void sendRadio() {
-  for (int i = 0; i < MAX_CLIENTS; i++) {
-    if (!networkDevice.MasterStorage.Slaves[i].isEquals(EMPTY_MAC)) {
-      Serial.print("Send sensor request to ");
-      Serial.print(String(getMacString(networkDevice.MasterStorage.Slaves[i])));
-      Serial.print(": ");
-
-      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_VOLTAGE);
-      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_HUMIDITY);
-      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_TEMPERATURE);
-      sendRadioRequest(networkDevice.MasterStorage.Slaves[i],SENSOR_TYPE_PHOTO);
-      sendRadioRequest(networkDevice.MasterStorage.Slaves[i],SENSOR_TYPE_GAS);
-      sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_HUMIDITYAIR);
-      Serial.println("...done");
-    }
-  }
-}
-
-void sendRadioRequest(SBMacAddress mac, uint8_t type) {
-  Serial.print(type);
-  uint8_t version = 0x01;
-  byte message[1 + 1];
-  memcpy((void*)(message), &version, sizeof(uint8_t));
-  memcpy((void*)(message + 1), &type, sizeof(uint8_t));
-  networkDevice.sendToDevice(mac, message, sizeof(message));
-}
-
-void PassiveScheduler::setup() {}
-void PassiveScheduler::loop() {
-  receiveSerial();
-  sendRadio();
-  delay(30000);
-}
-
-void ActiveScheduler::setup() {}
-void ActiveScheduler::loop() {
-  receiveSerial();
-  receiveRadio();
-}
-

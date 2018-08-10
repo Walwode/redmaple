@@ -2,15 +2,13 @@
 #include "PowerHelper.h"
 #include "Sensor.h"
 
-TODO: alter value wird bei auch bei anderen Sensoren gesendet
-
 SBNetwork networkDevice(true, 9, 10);
 
 /*
    The passive NRF24 device is receiving the request to check for a sensor value.
    There is no Radio.PowerDown. The power consumption with PowerSleep and ClockPreScaler is 0.35mA in sleep mode.
 
-   Uncomment and configure the sensor values in the loop section
+   Uncomment and configure the sensor values in the function receiveRadio
 */
 
 void setup() {
@@ -26,33 +24,47 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("Loop");
   PowerHelper::setClockPrescaler(CLOCK_PRESCALER_1);
   PowerHelper::resetADC();
 
+  receiveSerial();
+  receiveRadio();
+
+  PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
+  PowerHelper::disableADC();
+  PowerHelper::sleep(8);
+}
+
+void receiveSerial() {
   if (Serial.available()) {
     char c = toupper(Serial.read());
-    if (c == 'N') {
-      networkDevice.resetData();
-    }
-    if (c == 'T') {
-      Serial.println("Still running...");
+    switch (c) {
+      case  'N':
+        networkDevice.resetData();
+        break;
+      case 'T':
+        Serial.println("Still running...");
+        break;
     }
   }
-  
+}
+
+void receiveRadio() {
   networkDevice.update();
   uint8_t messageSize = networkDevice.available();
   
   while (messageSize > 0) {
     byte* message = (byte*)networkDevice.getMessage();
     SBMacAddress sender = networkDevice.getLastReceivedMac();
+    uint8_t version = 0x0;
+
     Serial.print(F("Sensor value request... "));
 
-    uint8_t version;
     memcpy(&version, (void*)(message), sizeof(uint8_t));
     if (version == 0x01) {
-      uint8_t type, temp1, temp2;
-      float value;
+      uint8_t type, temp1, temp2 = 0x0;
+      float value = 0x0;
+
       memcpy(&type, (void*)(message + 1), sizeof(uint8_t));
       Serial.println(type);
       switch (type) {
@@ -79,15 +91,13 @@ void loop() {
           break;
         */
       }
-      if (value != NULL) sendNrf24(sender, type, value);
+      if (value != 0x0) sendNrf24(sender, type, value);
+      delay(50);
     }
+
     networkDevice.update();
     messageSize = networkDevice.available();
   }
-
-  PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
-  PowerHelper::disableADC();
-  PowerHelper::sleep(8);
 }
 
 void sendNrf24(SBMacAddress &sendToMac, uint8_t type, float value) {

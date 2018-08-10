@@ -21,6 +21,12 @@ switch ($action) {
 	case 'photo':
 		getPhoto();
 		break;
+	case 'gas':
+		getGas();
+		break;
+	case 'humidityAir':
+		getHumidityAir();
+		break;
 	default:
 		die("Action " . $action . " unkown");
 }
@@ -191,6 +197,60 @@ function getPhoto() {
 		$entry = array();
 		$entry["timestamp"] = $curr;
 		$entry["photo"] = $photo;
+		$output[] = $entry;
+		$result->close();
+		
+		$curr -= $timeInterval;
+	}
+	echo json_encode($output);
+	// echo json_encode(array_reverse($output));
+}
+
+function getGas() {
+	$id = $_GET['device'];
+	if (!$days = $_GET['days']) $days = 3;
+	
+	$curr = time();
+	$timeSpan = 60 * 60 * 2;
+	$timeInterval = 60 * 60;
+	$output = array();
+	
+	for ($i = 0; $i < 24 * $days; $i++) {
+		$from = $curr - $timeSpan;
+		$to = $curr + $timeSpan;
+		
+		$result = sqlCommand("SELECT AVG(gas) FROM RedMaple_GasEntry WHERE deviceId = '$id' AND (datetime BETWEEN $from AND $to)");
+		$gas = ($result->fetch_assoc())['AVG(gas)'];
+		$entry = array();
+		$entry["timestamp"] = $curr;
+		$entry["gas"] = $gas;
+		$output[] = $entry;
+		$result->close();
+		
+		$curr -= $timeInterval;
+	}
+	echo json_encode($output);
+	// echo json_encode(array_reverse($output));
+}
+
+function getHumidityAir() {
+	$id = $_GET['device'];
+	if (!$days = $_GET['days']) $days = 3;
+	
+	$curr = time();
+	$timeSpan = 60 * 60 * 2;
+	$timeInterval = 60 * 60;
+	$output = array();
+	
+	for ($i = 0; $i < 24 * $days; $i++) {
+		$from = $curr - $timeSpan;
+		$to = $curr + $timeSpan;
+		
+		$result = sqlCommand("SELECT AVG(humidity) FROM RedMaple_HumidityAirEntry WHERE deviceId = '$id' AND (datetime BETWEEN $from AND $to)");
+		$humidity = ($result->fetch_assoc())['AVG(humidity)'];
+		$entry = array();
+		$entry["timestamp"] = $curr;
+		$entry["humidity"] = $humidity;
 		$output[] = $entry;
 		$result->close();
 		

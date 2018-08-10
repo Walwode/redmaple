@@ -25,18 +25,6 @@
 
 <div id="container">
 
-<!-- <h4>Humidity <a href="#" onclick="createHumidityChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4>-->
-<canvas id="humidityChart" width="1170" height="400"></canvas>
-
-<!-- <h4>Battery <a href="#" onclick="createBatteryChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4> -->
-<canvas id="batteryChart" width="1170" height="200"></canvas>
-
-<!-- <h4>Battery <a href="#" onclick="createBatteryChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4> -->
-<canvas id="temperatureChart" width="1170" height="200"></canvas>
-
-<!-- <h4>Battery <a href="#" onclick="createBatteryChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4> -->
-<canvas id="photoChart" width="1170" height="200"></canvas>
-
 <div style="float: left; width: 100%;">
 <h4>Devices <a href="#" onclick="getDevices();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4>
 <table id="table-devices" class="table">
@@ -57,6 +45,24 @@
 </table>
 </div>
 
+<!-- <h4>Humidity <a href="#" onclick="createHumidityChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4>-->
+<canvas id="humidityChart" width="1170" height="400"></canvas>
+
+<!-- <h4>Battery <a href="#" onclick="createBatteryChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4> -->
+<canvas id="batteryChart" width="1170" height="200"></canvas>
+
+<!-- <h4>Battery <a href="#" onclick="createBatteryChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4> -->
+<canvas id="temperatureChart" width="1170" height="200"></canvas>
+
+<!-- <h4>Battery <a href="#" onclick="createBatteryChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4> -->
+<canvas id="photoChart" width="1170" height="200"></canvas>
+
+<!-- <h4>Battery <a href="#" onclick="createBatteryChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4> -->
+<canvas id="gasChart" width="1170" height="200"></canvas>
+
+<!-- <h4>Battery <a href="#" onclick="createBatteryChart();  return false;" class="btn btn-primary btn-sm">Refresh</a></h4> -->
+<canvas id="humidityAirChart" width="1170" height="200"></canvas>
+
 </div> <!-- container -->
 <script>
 // $.fn.editable.defaults.mode = 'inline';
@@ -67,6 +73,8 @@ $(document).ready(function () {
 	createBatteryChart();
 	createTemperatureChart();
 	createPhotoChart();
+	createGasChart();
+	createHumidityAirChart();
 });
 
 function getDevices() {
@@ -289,6 +297,9 @@ function createBatteryChart() {
 			datasets: getBatteryChartDatasets(),
 		},
 		options: {
+			legend: {
+				display: false
+			},
 			title:{
 				text: "Chart.js Time Scale"
 			},
@@ -299,7 +310,7 @@ function createBatteryChart() {
 						tooltipFormat: 'll HH:mm'
 					},
 					scaleLabel: {
-						display: true,
+						display: false,
 						labelString: 'Last 3 days'
 					}
 				}, ],
@@ -376,6 +387,9 @@ function createTemperatureChart() {
 			datasets: getTemperatureChartDatasets(),
 		},
 		options: {
+			legend: {
+				display: false
+			},
 			title:{
 				text: "Chart.js Time Scale"
 			},
@@ -386,7 +400,7 @@ function createTemperatureChart() {
 						tooltipFormat: 'll HH:mm'
 					},
 					scaleLabel: {
-						display: true,
+						display: false,
 						labelString: 'Last 3 days'
 					}
 				}, ],
@@ -472,7 +486,7 @@ function createPhotoChart() {
 						  return tooltipItem.yLabel;
 				   }
 				}
-			}
+			},
 			title:{
 				text: "Chart.js Time Scale"
 			},
@@ -483,7 +497,7 @@ function createPhotoChart() {
 						tooltipFormat: 'll HH:mm'
 					},
 					scaleLabel: {
-						display: true,
+						display: false,
 						labelString: 'Last 3 days'
 					}
 				}, ],
@@ -538,6 +552,200 @@ function getPhotoChartDatasets() {
 					datasets.push({
 						label: element.nameEN,
 						data: getPhoto(element.deviceId),
+						backgroundColor: element.chartColor,
+						borderColor: element.chartColor,
+						borderWidth: 2,
+						fill: false,
+					});
+				}
+			});
+		}
+	});
+	return datasets;
+}
+
+function createGasChart() {
+	
+	var ctx = document.getElementById("gasChart").getContext('2d');
+	var myChart = new Chart(ctx, {
+		type: 'line',
+		data: {
+			labels: getDateTimeLabel(),
+			datasets: getGasChartDatasets(),
+		},
+		options: {
+			legend: {
+				display: false
+			},
+			tooltips: {
+				callbacks: {
+				   label: function(tooltipItem) {
+						  return tooltipItem.yLabel;
+				   }
+				}
+			},
+			title:{
+				text: "Chart.js Time Scale"
+			},
+			scales: {
+				xAxes: [{
+					type: "time",
+					time: {
+						tooltipFormat: 'll HH:mm'
+					},
+					scaleLabel: {
+						display: false,
+						labelString: 'Last 3 days'
+					}
+				}, ],
+				yAxes: [{
+					scaleLabel: {
+						display: true,
+						labelString: 'Gas'
+					},
+					ticks: {
+						suggestedMin: 50,    // minimum will be 0, unless there is a lower value.
+						suggestedMax: 800,
+						// beginAtZero: true   // minimum value will be 0.
+					}
+				}]
+			},
+		}
+	});
+}
+
+function getGas(deviceId) {
+	var output = new Array();
+	$.ajax({
+		type: 'GET',
+		url: 'ajax.php',
+		data: { action: 'gas', device: deviceId },
+		dataType: 'json',
+		async: false,
+		success: function(data) {
+			$.each(data, function(index, element) {
+				output.push({
+					x : new Date(element.timestamp * 1000),
+					y : element.gas
+				});
+				// output.push(element.humidity);
+			});
+		}
+	});
+	return output;
+}
+
+function getGasChartDatasets() {
+	var datasets = new Array();
+	$.ajax({
+		type: 'GET',
+		url: 'ajax.php',
+		data: { action: 'get' },
+		dataType: 'json',
+		async: false,
+		success: function(data) {
+			$.each(data, function(index, element) {
+				if (element.active != 0) {
+					datasets.push({
+						label: element.nameEN,
+						data: getGas(element.deviceId),
+						backgroundColor: element.chartColor,
+						borderColor: element.chartColor,
+						borderWidth: 2,
+						fill: false,
+					});
+				}
+			});
+		}
+	});
+	return datasets;
+}
+
+function createHumidityAirChart() {
+	
+	var ctx = document.getElementById("humidityAirChart").getContext('2d');
+	var myChart = new Chart(ctx, {
+		type: 'line',
+		data: {
+			labels: getDateTimeLabel(),
+			datasets: getHumidityAirChartDatasets(),
+		},
+		options: {
+			legend: {
+				display: false
+			},
+			tooltips: {
+				callbacks: {
+				   label: function(tooltipItem) {
+						  return tooltipItem.yLabel;
+				   }
+				}
+			},
+			title:{
+				text: "Chart.js Time Scale"
+			},
+			scales: {
+				xAxes: [{
+					type: "time",
+					time: {
+						tooltipFormat: 'll HH:mm'
+					},
+					scaleLabel: {
+						display: false,
+						labelString: 'Last 3 days'
+					}
+				}, ],
+				yAxes: [{
+					scaleLabel: {
+						display: true,
+						labelString: 'Humidity Air'
+					},
+					ticks: {
+						suggestedMin: 50,    // minimum will be 0, unless there is a lower value.
+						suggestedMax: 800,
+						// beginAtZero: true   // minimum value will be 0.
+					}
+				}]
+			},
+		}
+	});
+}
+
+function getHumidityAir(deviceId) {
+	var output = new Array();
+	$.ajax({
+		type: 'GET',
+		url: 'ajax.php',
+		data: { action: 'humidityAir', device: deviceId },
+		dataType: 'json',
+		async: false,
+		success: function(data) {
+			$.each(data, function(index, element) {
+				output.push({
+					x : new Date(element.timestamp * 1000),
+					y : element.humidity
+				});
+				// output.push(element.humidity);
+			});
+		}
+	});
+	return output;
+}
+
+function getHumidityAirChartDatasets() {
+	var datasets = new Array();
+	$.ajax({
+		type: 'GET',
+		url: 'ajax.php',
+		data: { action: 'get' },
+		dataType: 'json',
+		async: false,
+		success: function(data) {
+			$.each(data, function(index, element) {
+				if (element.active != 0) {
+					datasets.push({
+						label: element.nameEN,
+						data: getHumidityAir(element.deviceId),
 						backgroundColor: element.chartColor,
 						borderColor: element.chartColor,
 						borderWidth: 2,
