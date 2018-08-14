@@ -128,7 +128,7 @@ function ajaxUpdateText(tdControl, url, title, device, fieldName, callbackFuncti
         title: title,
 		name: fieldName,
 		pk: 1, // avoid undefined error
-		value: link.text(),
+		value: escape(link.text()),
 		success: function(response, newValue) {
 			// alert(response);
 			if (response.status == 'error') return response.msg; //msg will be shown in editable form

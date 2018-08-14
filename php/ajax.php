@@ -65,6 +65,11 @@ function encode_items(&$item, $key)
     $item = utf8_encode($item);
 }
 
+function utf8_urldecode($str) {
+	$str = preg_replace("/%u([0-9a-f]{3,4})/i","&#x\\1;",urldecode($str));
+	return html_entity_decode($str,null,'UTF-8');;
+}
+
 function updateDevice() {
 	if (!$device = $_GET['device']) return;
 	
