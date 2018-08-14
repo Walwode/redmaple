@@ -69,12 +69,12 @@ void receiveRadio() {
       Serial.println(type);
       switch (type) {
         case SENSOR_TYPE_VOLTAGE:
-          value = (float)Sensor::readVoltage(7, A6);
+          value = (float)Sensor::readVoltage(2, A2);
           break;
-        /*
         case SENSOR_TYPE_HUMIDITY:
           value = Sensor::readHumidity(8, A0);
           break;
+        /*
         case SENSOR_TYPE_PHOTO:
           value = Sensor::readPhoto(8, A1);
           break;

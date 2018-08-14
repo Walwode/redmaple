@@ -48,23 +48,25 @@ void receiveSerial() {
 void sendSensorValues() {
   networkDevice.update();
 
-  uint16_t voltage = Sensor::readVoltage(7, A6);
+  uint16_t voltage = Sensor::readVoltage(5, A3);
   sendNrf24(SENSOR_TYPE_VOLTAGE, (float)voltage);
-  delay(10); // break to finish nrf24
+  delay(50); // break to finish nrf24
 
-  uint16_t humidity = Sensor::readHumidity(8, A0);
+  uint16_t humidity = Sensor::readHumidity(7, A1);
   sendNrf24(SENSOR_TYPE_HUMIDITY, (float)humidity);
-  delay(10); // break to finish nrf24
+  delay(50); // break to finish nrf24
 
+  /*
   uint16_t photo = Sensor::readPhoto(8, A1);
   sendNrf24(SENSOR_TYPE_PHOTO, (float)photo);
-  delay(10); // break to finish nrf24
+  delay(50); // break to finish nrf24
 
   byte temp, hum = 0;
   Sensor::readDht11(7, 6, temp, hum);
   sendNrf24(SENSOR_TYPE_TEMPERATURE, (float)temp);
   sendNrf24(SENSOR_TYPE_HUMIDITYAIR, (float)hum);
-  delay(10); // break to finish nrf24
+  delay(50); // break to finish nrf24
+  */
 }
 
 void sendNrf24(uint8_t type, float value) {

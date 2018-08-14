@@ -61,7 +61,8 @@ void PassiveScheduler::setup() {}
 void PassiveScheduler::loop() {
   receiveSerial();
   sendRadio();
-  delay(30000);
+  // delay(30000);
+  delay(5*60*1000);
   // delay(19*60*1000); // 19 minutes
 }
 
@@ -94,8 +95,8 @@ void receiveRadio() {
   uint8_t messageSize = networkDevice.available();
   if (messageSize > 0) {
     byte* message = (byte*)networkDevice.getMessage();
-    Serial.print(F("Received Content from sensor: "));
-    Serial.println((char*)message);
+    Serial.print(F("Received data from sensor: "));
+    Serial.println(getLastMacString());
     
     uint8_t version;
     memcpy(&version, (void*)(message), sizeof(uint8_t));
@@ -110,21 +111,29 @@ void receiveRadio() {
   }
 }
 
-void sendDataToApi(String mac, uint8_t type, float value) {
-  Serial.println(F(">> Send by WiFi start"));
+void sendDataToApi(char* mac, uint8_t type, float value) {
+  while (WiFi.status() != WL_CONNECTED) { connectWifi(); }
+  
+  // Serial.println(F(">> Send by WiFi start"));
   
   // PROGMEM const char* site = "This string is in PROGMEM";
   // PROGMEM const char* accessToken = "<token>";
   // sprintf(url, "%S?action=sensor&access=%S&device=%S&type=%02d&value=%02d",site,accessToken,mac,type,value);
-  
+
+  /*
   String url;
   url += site;
   url += F("?action=sensor&access=");
   url += accessToken;
-  url += F("&device=") + String(mac);
-  url += F("&type=") + String(type);
-  url += F("&value=") + String(value);
+  url += "&device=" + String(mac);
+  url += "&type=" + String(type);
+  url += "&value=" + String(value);
   Serial.print(F("Requesting URL: "));
+  Serial.println(url);
+  */
+
+  char url[250];
+  sprintf(url, "http://%s%s?action=sensor&access=%s&device=%s&type=%d&value=%f",server,site,accessToken,mac,type,value);
   Serial.println(url);
   
   HTTPClient http;
@@ -133,7 +142,7 @@ void sendDataToApi(String mac, uint8_t type, float value) {
   if (httpCode > 0) { Serial.println(http.getString()); } // print payload
   http.end();
   
-  Serial.println(F("<< Send by WiFi end"));
+  // Serial.println(F("<< Send by WiFi end"));
 }
 
 void sendRadio() {
@@ -144,17 +153,17 @@ void sendRadio() {
       Serial.print(": ");
 
       sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_VOLTAGE);
-      delay(50);
+      delay(10000);
       sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_HUMIDITY);
-      delay(50);
+      delay(10000);
       sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_TEMPERATURE);
-      delay(50);
+      delay(10000);
       sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_PHOTO);
-      delay(50);
+      delay(10000);
       sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_GAS);
-      delay(50);
+      delay(10000);
       sendRadioRequest(networkDevice.MasterStorage.Slaves[i], SENSOR_TYPE_HUMIDITYAIR);
-      delay(50);
+      delay(10000);
       Serial.println("...done");
     }
   }
@@ -167,17 +176,19 @@ void sendRadioRequest(SBMacAddress mac, uint8_t type) {
   memcpy((void*)(message), &version, sizeof(uint8_t));
   memcpy((void*)(message + 1), &type, sizeof(uint8_t));
   networkDevice.sendToDevice(mac, message, sizeof(message));
+
+  delay(100);
+  receiveRadio();
 }
 
-String getLastMacString() {
+char* getLastMacString() {
   return macToString(networkDevice.getLastReceivedMac());
 }
 
-String macToString(SBMacAddress mac) {
+char* macToString(SBMacAddress mac) {
   char temp[9];
   sprintf(temp, "%02x.%02x.%02x.%02x.%02x",mac.Bytes[0],mac.Bytes[1],mac.Bytes[2],mac.Bytes[3],mac.Bytes[4]);
-  String str(temp);
-  return str;
+  return temp;
 }
 
 void toBinary(const void* buf, uint8_t data_len) {
