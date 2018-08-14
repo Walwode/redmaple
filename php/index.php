@@ -18,6 +18,9 @@
 			padding-right: 20px;
 			width: 1200px;
 		}
+		a {
+			color: #000;
+		}
 	</style>
 </head>
 
@@ -98,7 +101,7 @@ function getDevices() {
 			if (element.voltage) var voltage = $('<td>' + voltageToBattery(element.voltage) + '% </td>');
 			else var voltage = $('<td>-</td>');
 			
-			var htmlDevices = $('<tr></tr>');
+			var htmlDevices = $('<tr style="background-color: ' + element.chartColor + '"></tr>');
 			htmlDevices.append(deviceId);
 			htmlDevices.append(nameDE);
 			htmlDevices.append(nameEN);
