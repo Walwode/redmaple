@@ -1,6 +1,7 @@
 #include <SBNetwork.h>
 #include "PowerHelper.h"
 #include "Sensor.h"
+#include <MemoryFree.h>
 
 SBNetwork networkDevice(true, 9, 10);
 
@@ -31,7 +32,8 @@ void loop() {
   
   PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
   PowerHelper::disableADC();
-  PowerHelper::sleep(1175);
+  // PowerHelper::sleep(1175);
+  PowerHelper::sleep(16);
 }
 
 void receiveSerial() {
@@ -46,8 +48,6 @@ void receiveSerial() {
 }
 
 void sendSensorValues() {
-  networkDevice.update();
-
   uint16_t voltage = Sensor::readVoltage(5, A3);
   sendNrf24(SENSOR_TYPE_VOLTAGE, (float)voltage);
   delay(50); // break to finish nrf24
@@ -70,25 +70,78 @@ void sendSensorValues() {
 }
 
 void sendNrf24(uint8_t type, float value) {
-  Serial.println(F("[NRF24] Send data... "));
-  Serial.print(F("[NRF24] Type: "));
-  Serial.println(type);
-  Serial.print(F("[NRF24] Value: "));
-  Serial.println(value);
+  Serial.print(F("[NRF24] Send data: "));
+  Serial.print(F("Type = "));
+  Serial.print(type);
+  Serial.print(F(", Value = "));
+  Serial.print(value);
+  Serial.print(F("..."));
+  
   networkDevice.radio.powerUp();
+  bool receivedConfirmation = false;
+  int sendAttempt = 0;
 
-  uint8_t version = 0x01;
+  while (!receivedConfirmation && (sendAttempt < 3)) {
+    sendAttempt++;
+    Serial.print(F("."));
+    
+    doSendValue(type, value);
+    unsigned long timeout = millis() + 5000;
+    while ((millis() < timeout) && !receivedConfirmation) {
+      receivedConfirmation = checkConfirmation(type);
+      delay(100);
+    }
+  }
+
+  networkDevice.radio.powerDown();
+  receivedConfirmation ? Serial.println(F(" done")) : Serial.println(F(" timeout"));
+}
+
+void doSendValue(uint8_t type, float value) {
+  uint8_t version = 0x02;
   byte message[1 + 1 + 4];
   memcpy((void*)(message), &version, sizeof(version));
   memcpy((void*)(message + 1), &type, sizeof(type));
   memcpy((void*)(message + 2), &value, sizeof(value));
-  networkDevice.sendToDevice(networkDevice.NetworkDevice.MasterMAC, message, 1 + 1 + 4);
+  networkDevice.sendToDevice(networkDevice.NetworkDevice.MasterMAC, message, sizeof(message));
+}
 
-  networkDevice.radio.powerDown();
-  Serial.println(F("[NRF24] Send data... done"));
+bool checkConfirmation(uint8_t typeSent) {
+  networkDevice.update();
+  uint8_t messageSize = networkDevice.available();
+  if (messageSize > 0) {
+    byte* message = (byte*)networkDevice.getMessage();
+    uint8_t version;
+    uint8_t type = 0xff;
+    memcpy(&version, (void*)(message), sizeof(uint8_t));
+    // Serial.print(F("Version: "));
+    // Serial.println(version);
+    switch (version) {
+      case 0x2:
+        memcpy(&type, (void*)(message + 1), sizeof(uint8_t));
+        // Serial.print(F("Type: "));
+        // Serial.println(type);
+        return (type == typeSent);
+        break;
+      default:
+        return false;
+    }
+  }
+  return false;
+  /*
+  networkDevice.update();
+  uint8_t messageSize = networkDevice.available();
+  if (messageSize > 0) {
+    Serial.print(F("Received Content: "));
+    Serial.println((char*)networkDevice.getMessage());
+    return true;
+  }
+  return false;  
+  */
 }
 
 int getRandomSeed() {
   return analogRead(A0) + analogRead(A1) + analogRead(A2) + analogRead(A3) + analogRead(A4)
          + analogRead(A0) + analogRead(A1) + analogRead(A2) + analogRead(A3) + analogRead(A4);
 }
+

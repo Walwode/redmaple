@@ -36,7 +36,6 @@ ActiveScheduler activeScheduler;
 const char* server = "api.walterheger.de";
 const char* site = "/redmaple/arduino.php";
 const char* accessToken = "d548434a-2c80-11e8-8c45-00248c77bce5";
-const char* deviceId = "1ea587d3";
 
 void setup() {
   Serial.begin(115200);
@@ -44,6 +43,7 @@ void setup() {
   
   SBMacAddress deviceMac(0x01, 0x02, 0x03, 0x04, 0x05);
   networkDevice.initialize(deviceMac);
+  networkDevice.enableAutomaticClientAdding(true);
   Serial.println(F("*** PRESS 'N' to reset the device"));
   
   Scheduler.start(&passiveScheduler);
@@ -60,7 +60,7 @@ void loop() {
 void PassiveScheduler::setup() {}
 void PassiveScheduler::loop() {
   receiveSerial();
-  sendRadio();
+  // sendRadio();
   // delay(30000);
   delay(5*60*1000);
   // delay(19*60*1000); // 19 minutes
@@ -99,14 +99,26 @@ void receiveRadio() {
     Serial.println(getLastMacString());
     
     uint8_t version;
+    uint8_t type = 0xff;
+    float value = 0x0;
+        
     memcpy(&version, (void*)(message), sizeof(uint8_t));
-    if (version == 0x01) {
-      uint8_t type;
-      float value;
-      
-      memcpy(&type, (void*)(message + 1), sizeof(uint8_t));
-      memcpy(&value, (void*)(message + 2), sizeof(float));
-      sendDataToApi(getLastMacString(), type, value);
+    switch (version) {
+      case 0x01:
+        memcpy(&type, (void*)(message + 1), sizeof(uint8_t));
+        memcpy(&value, (void*)(message + 2), sizeof(float));
+        sendDataToApi(getLastMacString(), type, value);
+        break;
+        
+      case 0x02:
+        memcpy(&type, (void*)(message + 1), sizeof(uint8_t));
+        memcpy(&value, (void*)(message + 2), sizeof(float));
+        if ((type != 0xff) && (value != 0x0)) {
+          delay(100);
+          confirmSensor(networkDevice.getLastReceivedMac(), type);
+          sendDataToApi(getLastMacString(), type, value);
+        }
+        break;
     }
   }
 }
@@ -114,24 +126,6 @@ void receiveRadio() {
 void sendDataToApi(char* mac, uint8_t type, float value) {
   while (WiFi.status() != WL_CONNECTED) { connectWifi(); }
   
-  // Serial.println(F(">> Send by WiFi start"));
-  
-  // PROGMEM const char* site = "This string is in PROGMEM";
-  // PROGMEM const char* accessToken = "<token>";
-  // sprintf(url, "%S?action=sensor&access=%S&device=%S&type=%02d&value=%02d",site,accessToken,mac,type,value);
-
-  /*
-  String url;
-  url += site;
-  url += F("?action=sensor&access=");
-  url += accessToken;
-  url += "&device=" + String(mac);
-  url += "&type=" + String(type);
-  url += "&value=" + String(value);
-  Serial.print(F("Requesting URL: "));
-  Serial.println(url);
-  */
-
   char url[250];
   sprintf(url, "http://%s%s?action=sensor&access=%s&device=%s&type=%d&value=%f",server,site,accessToken,mac,type,value);
   Serial.println(url);
@@ -143,6 +137,17 @@ void sendDataToApi(char* mac, uint8_t type, float value) {
   http.end();
   
   // Serial.println(F("<< Send by WiFi end"));
+}
+
+void confirmSensor(SBMacAddress mac, uint8_t type) {
+  Serial.print("Send back type ");
+  Serial.println(macToString(mac));
+  
+  uint8_t version = 0x02;
+  byte message[1 + 1];
+  memcpy((void*)(message), &version, sizeof(version));
+  memcpy((void*)(message + 1), &type, sizeof(type));
+  networkDevice.sendToDevice(mac, message, sizeof(message));
 }
 
 void sendRadio() {
