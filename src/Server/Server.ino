@@ -1,7 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
-#include <SBNetwork_config.h>
-#include <SBNetwork.h>
+#include "SBNetwork_config.h"
+#include "SBNetwork.h"
 #include <Scheduler.h>
 
 #define SENSOR_TYPE_VOLTAGE       0

@@ -413,8 +413,8 @@ function createTemperatureChart() {
 						labelString: 'Temperature'
 					},
 					ticks: {
-						suggestedMin: 20,    // minimum will be 0, unless there is a lower value.
-						suggestedMax: 100,
+						suggestedMin: 15,    // minimum will be 0, unless there is a lower value.
+						suggestedMax: 30,
 						// beginAtZero: true   // minimum value will be 0.
 					}
 				}]

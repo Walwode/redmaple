@@ -1,4 +1,4 @@
-#include <SBNetwork.h>
+#include "SBNetwork.h"
 #include "PowerHelper.h"
 #include "Sensor.h"
 #include <MemoryFree.h>
@@ -32,8 +32,8 @@ void loop() {
   
   PowerHelper::setClockPrescaler(CLOCK_PRESCALER_16);
   PowerHelper::disableADC();
-  // PowerHelper::sleep(1175);
-  PowerHelper::sleep(16);
+  PowerHelper::sleep(1175);
+  // PowerHelper::sleep(16);
 }
 
 void receiveSerial() {
